@@ -1,0 +1,126 @@
+SELECT *
+FROM state_climate
+LIMIT 10;
+
+--Aggregate and Value Functions--
+SELECT
+  state,
+  year,
+  ROUND(tempf,2) as tempf,
+  ROUND(tempc,2) as tempc,
+  ROUND(avg(tempc) OVER (
+    PARTITION BY state
+    ORDER BY year
+  ),2) AS "running_avg_temp"
+
+FROM state_climate
+WHERE state="Alabama"
+LIMIT 10;
+
+---------
+
+--First_Value and Last_Value are part of the analytic functions. The First_Value Function returns the first value in an ordered set of values, and Similarly Last_Value function returns the last value from an ordered set of values--
+
+----------
+--Find the lowest temperature for each state--
+SELECT
+  state,
+  year,
+  ROUND(tempf,2) as tempf,
+  ROUND(tempc,2) as tempc,
+  ROUND(FIRST_VALUE(tempc) OVER (
+    PARTITION BY state
+    ORDER BY tempc
+  ),2) AS "lowest_temp"
+FROM state_climate
+LIMIT 5;
+
+----------
+--We need to use LAST_VALUE in order to find the highest recorded temperature for each state but unlike FIRST_VALUE, we also need to specify a frame for our query: RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+----------
+
+--Find the highest temperature for each state--
+SELECT
+  state,
+  year,
+  ROUND(tempf,2) as tempf,
+  ROUND(tempc,2) as tempc,
+  ROUND(LAST_VALUE(tempc) OVER (
+    PARTITION BY state
+    ORDER BY tempc
+    RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+  ),2) AS "highest_temp"
+FROM state_climate
+LIMIT 5;
+
+
+
+--Temperature changes each year in each state--
+
+--LAG (scalar_expression [,offset] [,default])  OVER ( [ partition_by_clause ] order_by_clause )
+--you need all three parameters that LAG accepts in order to look to the previous row and never return a null--
+--Scalar_expression: We define a column name or expression in this argument. The lag function does calculations on this column. It is a mandatory argument, and we cannot execute the lag function without this
+--Offset: We define an integer number in this argument. The lag function uses this argument forgo behind the number of rows (offset). The default value for this argument is one. It is an optional argument
+--Default: Suppose we define an offset, value that does not lie in the boundary of the data. For example, we specified offset value 3 for the first row. A lag function cannot go three rows behind. It displays the default value if specified. If we do not specify any value for this, the lag function displays NULL in the output for out of range values--
+
+SELECT
+  state,
+  year,
+  ROUND(tempf,2) AS tempf,
+  ROUND(tempc,2) AS tempc,
+  ROUND(LAG (tempc,1,0) OVER ( 
+    PARTITION BY state
+    ORDER BY year),2) AS 'change_in_temp'
+FROM state_climate
+ORDER BY change_in_temp DESC
+LIMIT 10; --largest to lowest
+
+--Rank the coldest temperatures on record--
+SELECT 
+  RANK () OVER (
+    ORDER BY tempc) AS Rank,
+  state,
+  year,
+  ROUND(tempf,2) AS tempf,
+  ROUND(tempc,2) AS tempc
+FROM state_climate;
+
+--Rank the warmest temperatures on record--
+SELECT 
+  RANK () OVER (
+    PARTITION BY state
+    ORDER BY tempc DESC
+  ) AS Rank,
+  state,
+  year,
+  ROUND(tempf,2) AS tempf,
+  ROUND(tempc,2) AS tempc
+FROM state_climate;
+
+--Average yearly temperatures in quartiles--
+SELECT
+  NTILE(4) OVER (
+    PARTITION BY state
+    ORDER BY tempc
+  ) AS quartile,
+  state,
+  year,
+  ROUND(tempf,2) AS tempf,
+  ROUND(tempc,2) AS tempc
+FROM state_climate;
+
+--The average yearly temperatures in quintiles(5)
+SELECT 
+  NTILE(5) OVER (
+    PARTITION BY state
+    ORDER BY tempc
+  ) AS quintile,
+  year,
+  state,
+  ROUND(tempf,2) AS tempf,
+  ROUND(tempc,2) AS tempc
+FROM state_climate;
+
+
+
+
